@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body,
+html {
+  height: 100%;
+}
+
+/* Custom styles for CopilotKit sidebar */
+.copilot-sidebar-custom {
+  /* Ensure the sidebar takes full height */
+  height: 100vh !important;
+}
+
+.copilot-sidebar-custom .copilotKit-chat-container {
+  /* Make the chat container use flexbox */
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+.copilot-sidebar-custom .copilotKit-messages-container {
+  /* Make messages area scrollable and take remaining space */
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding-bottom: 20px !important;
+}
+
+.copilot-sidebar-custom .copilotKit-input-container {
+  /* Position input at bottom */
+  position: sticky !important;
+  bottom: 0 !important;
+  background: white !important;
+  border-top: 1px solid #e5e7eb !important;
+  padding: 16px !important;
+  margin-top: auto !important;
+}
+
+/* Ensure HITL cards don't interfere with input positioning */
+.copilot-sidebar-custom .copilotKit-messages-container .hitl-card {
+  margin-bottom: 20px !important;
+}
+
+/* Fix hydration error: Convert p tags to divs to allow block elements inside */
+.copilotKitMarkdownElement p {
+  display: block !important;
+  margin: 1em 0 !important;
+  line-height: 1.6 !important;
+}
+
+/* Convert all divs inside p tags to inline elements */
+.copilotKitMarkdownElement p div {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: baseline !important;
+}
+
+/* Hide the specific toolbar that causes hydration errors */
+.copilotKitCodeBlockToolbarButtons {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Global fix for div inside p tags - force all divs inside p to be inline */
+p div {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: baseline !important;
+}
+
+/* Specific fix for the error mentioned in the stack trace */
+p div.copilotKitCodeBlockToolbarButtons {
+  display: none !important;
+}
+
+/* Force all problematic elements to be hidden or inline */
+.copilotKitCodeBlockToolbarButtons {
+  display: none !important;
+}
+
+/* Additional fix for any remaining divs inside p tags */
+.copilotKitMarkdownElement p * {
+  display: inline !important;
+}
+
+/* Exception for pre and blockquote which should remain block */
+.copilotKitMarkdownElement p pre,
+.copilotKitMarkdownElement p blockquote {
+  display: block !important;
+  margin: 1em 0 !important;
+}
