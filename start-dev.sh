@@ -110,13 +110,15 @@ fi
 print_status "Activating virtual environment..."
 source .venv/bin/activate
 
+# Verify we're in the virtual environment
+if [ -z "$VIRTUAL_ENV" ]; then
+    print_error "Failed to activate virtual environment"
+    exit 1
+fi
+
 # Install Python dependencies
 print_status "Installing Python dependencies..."
-if command_exists pip3; then
-    pip3 install -r requirements.txt
-else
-    pip install -r requirements.txt
-fi
+.venv/bin/pip install -r requirements.txt
 
 if [ $? -ne 0 ]; then
     print_error "Failed to install Python dependencies"
