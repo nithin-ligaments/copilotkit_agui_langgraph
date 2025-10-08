@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
+import { AuthProvider } from "@/contexts/auth-context";
+import { Toaster } from "sonner";
 import "./globals.css";
 import "@copilotkit/react-ui/styles.css";
 
 export const metadata: Metadata = {
-  title: "Human-in-the-Loop Agent",
-  description: "AI agent with human-in-the-loop functionality",
+  title: "Pro Invest - AI-Powered Insurance Recommendations",
+  description: "Find the perfect insurance instantly with AI. Compare health, auto, life, and travel insurance plans with personalized recommendations.",
 };
 
 export default function RootLayout({
@@ -22,7 +24,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AuthProvider>
+            {children}
+            <Toaster position="top-right" />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

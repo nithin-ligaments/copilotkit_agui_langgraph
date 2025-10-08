@@ -1,660 +1,505 @@
 "use client";
 
-import { useCoAgent, useCopilotAction, useLangGraphInterrupt, CopilotKit } from "@copilotkit/react-core";
-import { CopilotKitCSSProperties } from "@copilotkit/react-ui";
-import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-import { useTheme } from "next-themes";
+import { useState } from "react";
+import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { 
+  MessageCircle, 
+  Search, 
+  Brain, 
+  Shield, 
+  CheckCircle, 
+  ArrowRight, 
+  Star,
+  ChevronDown,
+  Bot,
+  Sparkles,
+  Zap,
+  Lock,
+  Users,
+  Globe,
+  Home,
+  Car,
+  Heart,
+  Plane,
+  Briefcase,
+  GraduationCap
+} from "lucide-react";
 
-// Dynamically import CopilotSidebar with SSR disabled to prevent hydration issues
-const CopilotSidebarNoSSR = dynamic(
-  () => import("@copilotkit/react-ui").then((mod) => ({ default: mod.CopilotSidebar })),
-  { 
-    ssr: false,
-    loading: () => null // Don't show loading state
-  }
-);
+export default function LandingPage() {
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
 
-export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#6366f1");
-
-  return (
-    <CopilotKit
-      runtimeUrl={`/api/copilotkit/langgraph`}
-      showDevConsole={false}
-      agent="human_in_the_loop"
-    >
-      <MainContentWithActions themeColor={themeColor} setThemeColor={setThemeColor} />
-    </CopilotKit>
-  );
-}
-
-function MainContentWithActions({ themeColor, setThemeColor }: { themeColor: string; setThemeColor: (color: string) => void }) {
-  // 🪁 Frontend Actions: https://docs.copilotkit.ai/guides/frontend-actions
-  useCopilotAction({
-    name: "setThemeColor",
-    parameters: [{
-      name: "themeColor",
-      description: "The theme color to set. Make sure to pick nice colors.",
-      required: true, 
-    }],
-    handler({ themeColor }) {
-      setThemeColor(themeColor);
-    },
-  });
-
-  return (
-    <main style={{ "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties}>
-      <HITLMainContent themeColor={themeColor} />
-      <CopilotSidebarNoSSR
-        clickOutsideToClose={false}
-        defaultOpen={true}
-        labels={{
-          title: "Human-in-the-Loop Agent",
-          initial: "👋 Hi! I'm your Human-in-the-Loop agent. I can help you plan tasks and get your input on the steps.\n\nTry asking me to:\n- **Plan a trip to Mars in 5 steps**\n- **Create a morning routine with 8 steps**\n- **Plan a pasta dish in 10 steps**\n\nI'll generate step-by-step plans and ask for your approval before proceeding!"
-        }}
-        className="copilot-sidebar-custom !fixed !bottom-4 !right-4 !z-50"
-      />
-    </main>
-  );
-}
-
-// State of the agent, make sure this aligns with your agent's state.
-type AgentState = {
-  proverbs: string[];
-  // Weather state
-  weather_data: {
-    location: string;
-    temperature: string;
-    condition: string;
-    humidity: string;
-    wind_speed: string;
-    wind_direction: string;
-    feels_like: string;
-    visibility: string;
-    uv_index: string;
-    precipitation_chance: string;
-    recommendations: string[];
-    clothing_suggestion: string;
-    activity_suggestion: string;
-  } | null;
-  // HITL (Human-in-the-Loop) state
-  hitl_pending: boolean;
-  hitl_question: string;
-  hitl_response: string;
-  hitl_context: string;
-}
-
-// HITL Step Interface
-interface Step {
-  description: string;
-  status: "disabled" | "enabled" | "executing";
-}
-
-// HITL UI Components
-const StepContainer = ({ theme, children }: { theme?: string; children: React.ReactNode }) => (
-  <div data-testid="select-steps" className="flex justify-center">
-    <div
-      className={`relative rounded-xl w-[600px] p-6 shadow-lg backdrop-blur-sm ${
-        theme === "dark"
-          ? "bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border border-slate-700/50 shadow-2xl"
-          : "bg-gradient-to-br from-white via-gray-50 to-white text-gray-800 border border-gray-200/80"
-      }`}
-    >
-      {children}
-    </div>
-  </div>
-);
-
-const StepHeader = ({
-  theme,
-  enabledCount,
-  totalCount,
-  status,
-  showStatus = false,
-}: {
-  theme?: string;
-  enabledCount: number;
-  totalCount: number;
-  status?: string;
-  showStatus?: boolean;
-}) => (
-  <div className="mb-5">
-    <div className="flex items-center justify-between mb-3">
-      <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-        Select Steps
-      </h2>
-      <div className="flex items-center gap-3">
-        <div className={`text-sm ${theme === "dark" ? "text-slate-400" : "text-gray-500"}`}>
-          {enabledCount}/{totalCount} Selected
-        </div>
-        {showStatus && (
-          <div
-            className={`text-xs px-2 py-1 rounded-full font-medium ${
-              status === "executing"
-                ? theme === "dark"
-                  ? "bg-blue-900/30 text-blue-300 border border-blue-500/30"
-                  : "bg-blue-50 text-blue-600 border border-blue-200"
-                : theme === "dark"
-                  ? "bg-slate-700 text-slate-300"
-                  : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {status === "executing" ? "Ready" : "Waiting"}
-          </div>
-        )}
-      </div>
-    </div>
-
-    <div
-      className={`relative h-2 rounded-full overflow-hidden ${theme === "dark" ? "bg-slate-700" : "bg-gray-200"}`}
-    >
-      <div
-        className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500 ease-out"
-        style={{ width: `${totalCount > 0 ? (enabledCount / totalCount) * 100 : 0}%` }}
-      />
-    </div>
-  </div>
-);
-
-const StepItem = ({
-  step,
-  theme,
-  status,
-  onToggle,
-  disabled = false,
-}: {
-  step: { description: string; status: string };
-  theme?: string;
-  status?: string;
-  onToggle: () => void;
-  disabled?: boolean;
-}) => (
-  <div
-    className={`flex items-center p-3 rounded-lg transition-all duration-300 ${
-      step.status === "enabled"
-        ? theme === "dark"
-          ? "bg-gradient-to-r from-blue-900/20 to-purple-900/10 border border-blue-500/30"
-          : "bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/60"
-        : theme === "dark"
-          ? "bg-slate-800/30 border border-slate-600/30"
-          : "bg-gray-50/50 border border-gray-200/40"
-    }`}
-  >
-    <label data-testid="step-item" className="flex items-center cursor-pointer w-full">
-      <div className="relative">
-        <input
-          type="checkbox"
-          checked={step.status === "enabled"}
-          onChange={onToggle}
-          className="sr-only"
-          disabled={disabled}
-        />
-        <div
-          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
-            step.status === "enabled"
-              ? "bg-gradient-to-br from-blue-500 to-purple-600 border-blue-500"
-              : theme === "dark"
-                ? "border-slate-400 bg-slate-700"
-                : "border-gray-300 bg-white"
-          } ${disabled ? "opacity-60" : ""}`}
-        >
-          {step.status === "enabled" && (
-            <svg
-              className="w-3 h-3 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          )}
-        </div>
-      </div>
-      <span
-        data-testid="step-text"
-        className={`ml-3 font-medium transition-all duration-300 ${
-          step.status !== "enabled" && status != "inProgress"
-            ? `line-through ${theme === "dark" ? "text-slate-500" : "text-gray-400"}`
-            : theme === "dark"
-              ? "text-white"
-              : "text-gray-800"
-        } ${disabled ? "opacity-60" : ""}`}
-      >
-        {step.description}
-      </span>
-    </label>
-  </div>
-);
-
-const ActionButton = ({
-  variant,
-  theme,
-  disabled,
-  onClick,
-  children,
-}: {
-  variant: "primary" | "secondary" | "success" | "danger";
-  theme?: string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) => {
-  const baseClasses = "px-6 py-3 rounded-lg font-semibold transition-all duration-200";
-  const enabledClasses = "hover:scale-105 shadow-md hover:shadow-lg";
-  const disabledClasses = "opacity-50 cursor-not-allowed";
-
-  const variantClasses = {
-    primary:
-      "bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white shadow-lg hover:shadow-xl",
-    secondary:
-      theme === "dark"
-        ? "bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-slate-500"
-        : "bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 hover:border-gray-400",
-    success:
-      "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl",
-    danger:
-      "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl",
+  const toggleFAQ = (index: number) => {
+    setOpenFAQ(openFAQ === index ? null : index);
   };
 
   return (
-    <button
-      className={`${baseClasses} ${disabled ? disabledClasses : enabledClasses} ${
-        disabled && variant === "secondary"
-          ? "bg-gray-200 text-gray-500"
-          : disabled && variant === "success"
-            ? "bg-gray-400"
-            : variantClasses[variant]
-      }`}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-};
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center justify-between h-full px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-300">
+              <Shield className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight">Pro Invest</h1>
+              <p className="text-xs text-muted-foreground">Powered by AI</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/login">
+              <Button variant="outline" size="sm" className="hover:shadow-lg hover:scale-105 transition-all duration-300 bg-white/90 backdrop-blur-sm border-blue-200 hover:border-blue-300">
+                Sign In
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button size="sm" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+                Get Started Free
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
 
-const DecorativeElements = ({
-  theme,
-  variant = "default",
-}: {
-  theme?: string;
-  variant?: "default" | "success" | "danger";
-}) => (
-  <>
-    <div
-      className={`absolute top-3 right-3 w-16 h-16 rounded-full blur-xl ${
-        variant === "success"
-          ? theme === "dark"
-            ? "bg-gradient-to-br from-green-500/10 to-emerald-500/10"
-            : "bg-gradient-to-br from-green-200/30 to-emerald-200/30"
-          : variant === "danger"
-            ? theme === "dark"
-              ? "bg-gradient-to-br from-red-500/10 to-pink-500/10"
-              : "bg-gradient-to-br from-red-200/30 to-pink-200/30"
-            : theme === "dark"
-              ? "bg-gradient-to-br from-blue-500/10 to-purple-500/10"
-              : "bg-gradient-to-br from-blue-200/30 to-purple-200/30"
-      }`}
-    />
-    <div
-      className={`absolute bottom-3 left-3 w-12 h-12 rounded-full blur-xl ${
-        variant === "default"
-          ? theme === "dark"
-            ? "bg-gradient-to-br from-purple-500/10 to-pink-500/10"
-            : "bg-gradient-to-br from-purple-200/30 to-pink-200/30"
-          : "opacity-50"
-      }`}
-    />
-  </>
-);
+      {/* Hero Section */}
+      <section className="py-20 px-6 lg:px-8 relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        {/* Background Pattern */}
+        <div className="absolute inset-0">
+          <div className="absolute top-10 left-10 w-40 h-40 bg-gradient-to-br from-blue-400/60 to-purple-400/50 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute top-40 right-20 w-32 h-32 bg-gradient-to-br from-purple-300/70 to-blue-300/60 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-40 left-1/4 w-48 h-48 bg-gradient-to-br from-blue-300/50 to-purple-500/40 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto text-center relative z-10">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-blue-200 hover:from-blue-100 hover:to-purple-100 transition-all duration-300 shadow-sm backdrop-blur-sm">
+            <Sparkles className="w-4 h-4 animate-pulse" />
+            Powered by Advanced AI Technology
+          </div>
+          
+          <h1 className="text-4xl sm:text-6xl font-bold text-foreground mb-6 tracking-tight">
+            Find the Perfect
+            <span className="text-blue-600 block">Insurance — Instantly, with AI</span>
+          </h1>
+          
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed">
+            Our intelligent chatbot compares hundreds of health, auto, life, and travel insurance plans to find the one that fits your lifestyle and budget.
+          </p>
+          
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
+            Skip the research and forms — just chat with our AI, tell it your needs, and get personalized recommendations within seconds. No brokers. No confusion. Just clarity.
+          </p>
+          
+          <div className="flex items-center justify-center gap-4 mb-12">
+            <Link href="/signup">
+              <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white h-14 px-10 shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 group text-lg font-semibold">
+                <ArrowRight className="w-5 h-5 mr-2 group-hover:translate-x-1 transition-transform duration-300" />
+                Get Started Free
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button variant="outline" size="lg" className="h-14 px-10 hover:shadow-xl hover:scale-105 transition-all duration-300 bg-white/90 backdrop-blur-sm text-lg font-semibold border-blue-200 hover:border-blue-300">
+                <MessageCircle className="w-5 h-5 mr-2" />
+                Sign In
+              </Button>
+            </Link>
+          </div>
+          
+          {/* Trust indicators */}
+          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground mb-8">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-blue-600" />
+              <span>No Credit Card Required</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-blue-600" />
+              <span>Instant Results</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-600" />
+              <span>Privacy First</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-function HITLMainContent({ themeColor }: { themeColor: string }) {
-  const { theme } = useTheme();
-  const [localSteps, setLocalSteps] = useState<Step[]>([]);
-  const [accepted, setAccepted] = useState<boolean | null>(null);
+      {/* Features Section */}
+      <section className="py-20 px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-gray-100 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Why Choose Our AI Insurance Assistant?
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Experience the future of insurance shopping with our intelligent AI-powered platform
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <Card className="p-6 border-0 shadow-sm bg-card hover:shadow-xl hover:scale-105 transition-all duration-500 group">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center mb-4 group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-300">
+                <Search className="h-6 w-6 text-blue-600 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Smart Comparison</h3>
+              <p className="text-muted-foreground mb-4 leading-relaxed">
+                Compares plans from top insurers in real time, analyzing price, coverage, and claim benefits.
+              </p>
+              <div className="flex items-center gap-2 text-blue-600 font-medium text-sm">
+                <span>Real-time Analysis</span>
+                <CheckCircle className="w-4 h-4" />
+              </div>
+            </Card>
 
-  // LangGraph interrupt handler for HITL functionality
-  useLangGraphInterrupt({
-    render: ({ event, resolve }) => {
-      let initialSteps: Step[] = [];
-      if (event.value && event.value.steps && Array.isArray(event.value.steps)) {
-        initialSteps = event.value.steps.map((step: any) => ({
-          description: typeof step === "string" ? step : step.description || "",
-          status: typeof step === "object" && step.status ? step.status : "enabled",
-        }));
-      }
+            <Card className="p-6 border-0 shadow-sm bg-card hover:shadow-xl hover:scale-105 transition-all duration-500 group">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl flex items-center justify-center mb-4 group-hover:from-purple-100 group-hover:to-purple-200 transition-all duration-300">
+                <Brain className="h-6 w-6 text-purple-600 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Personalized Recommendations</h3>
+              <p className="text-muted-foreground mb-4 leading-relaxed">
+                Our AI understands your preferences and risk profile to suggest what fits you best.
+              </p>
+              <div className="flex items-center gap-2 text-purple-600 font-medium text-sm">
+                <span>AI-Powered</span>
+                <CheckCircle className="w-4 h-4" />
+              </div>
+            </Card>
 
-      const enabledCount = initialSteps.filter((step) => step.status === "enabled").length;
+            <Card className="p-6 border-0 shadow-sm bg-card hover:shadow-xl hover:scale-105 transition-all duration-500 group">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-50 to-green-100 rounded-xl flex items-center justify-center mb-4 group-hover:from-green-100 group-hover:to-green-200 transition-all duration-300">
+                <MessageCircle className="h-6 w-6 text-green-600 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Transparent Insights</h3>
+              <p className="text-muted-foreground mb-4 leading-relaxed">
+                Explains why each plan is recommended — not just what to buy.
+              </p>
+              <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+                <span>Clear Explanations</span>
+                <CheckCircle className="w-4 h-4" />
+              </div>
+            </Card>
 
-      const handleStepToggle = (index: number) => {
-        setLocalSteps((prevSteps) =>
-          prevSteps.map((step, i) =>
-            i === index
-              ? { ...step, status: step.status === "enabled" ? "disabled" : "enabled" }
-              : step,
-          ),
-        );
-      };
+            <Card className="p-6 border-0 shadow-sm bg-card hover:shadow-xl hover:scale-105 transition-all duration-500 group">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl flex items-center justify-center mb-4 group-hover:from-orange-100 group-hover:to-orange-200 transition-all duration-300">
+                <Lock className="h-6 w-6 text-orange-600 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Privacy First</h3>
+              <p className="text-muted-foreground mb-4 leading-relaxed">
+                Your data is secure. We don't share personal details with third parties.
+              </p>
+              <div className="flex items-center gap-2 text-orange-600 font-medium text-sm">
+                <span>Secure & Private</span>
+                <CheckCircle className="w-4 h-4" />
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
 
-      const handlePerformSteps = () => {
-        const selectedSteps = localSteps
-          .filter((step) => step.status === "enabled")
-          .map((step) => step.description);
-        resolve("The user selected the following steps: " + selectedSteps.join(", "));
-      };
+      {/* How It Works Section */}
+      <section className="py-20 px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              How It Works
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Get started with insurance AI in four simple steps
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-4 gap-8">
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                <MessageCircle className="h-8 w-8 text-white" />
+              </div>
+              <div className="relative">
+                <div className="absolute -top-4 -right-4 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                <h3 className="text-xl font-semibold text-foreground mb-3">Start a Chat</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  Tell our AI what kind of insurance you're looking for.
+                </p>
+              </div>
+            </div>
 
-      return (
-        <StepContainer theme={theme}>
-          <StepHeader theme={theme} enabledCount={enabledCount} totalCount={initialSteps.length} />
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Search className="h-8 w-8 text-white" />
+              </div>
+              <div className="relative">
+                <div className="absolute -top-4 -right-4 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                <h3 className="text-xl font-semibold text-foreground mb-3">Get Tailored Options</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  The chatbot scrapes the best plans from trusted providers.
+                </p>
+              </div>
+            </div>
 
-          <div className="space-y-3 mb-6">
-            {initialSteps.map((step, index) => (
-              <StepItem
-                key={index}
-                step={step}
-                theme={theme}
-                onToggle={() => handleStepToggle(index)}
-              />
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Brain className="h-8 w-8 text-white" />
+              </div>
+              <div className="relative">
+                <div className="absolute -top-4 -right-4 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                <h3 className="text-xl font-semibold text-foreground mb-3">Compare & Decide</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  See transparent comparisons with pros and cons.
+                </p>
+              </div>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                <CheckCircle className="h-8 w-8 text-white" />
+              </div>
+              <div className="relative">
+                <div className="absolute -top-4 -right-4 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">4</div>
+                <h3 className="text-xl font-semibold text-foreground mb-3">Get Instant Quotes</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  Receive links or quotes directly from verified insurers.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Insurance Categories Section */}
+      <section className="py-20 px-6 lg:px-8 bg-gradient-to-r from-rose-50 via-white to-pink-50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Explore Insurance Categories
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Find the perfect coverage for every aspect of your life
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { name: "Health Insurance", icon: Heart, desc: "Comprehensive health coverage for you and your family" },
+              { name: "Auto Insurance", icon: Car, desc: "Vehicle protection plans for all types of cars" },
+              { name: "Life Insurance", icon: Users, desc: "Family financial security and future planning" },
+              { name: "Travel Insurance", icon: Plane, desc: "Travel safety coverage for domestic and international trips" },
+              { name: "Home Insurance", icon: Home, desc: "Property protection for your most valuable asset" },
+              { name: "Term & Personal Accident", icon: Shield, desc: "Personal accident and term life coverage" }
+            ].map((category, index) => (
+              <Card key={index} className="p-6 hover:shadow-lg transition-shadow duration-300 group cursor-pointer border-0 bg-white/80 backdrop-blur-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-purple-100 transition-all duration-300">
+                    <category.icon className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-1">{category.name}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{category.desc}</p>
+                  </div>
+                </div>
+              </Card>
             ))}
           </div>
-
-          <div className="flex justify-center">
-            <ActionButton variant="primary" theme={theme} onClick={handlePerformSteps}>
-              <span className="text-lg">✨</span>
-              Perform Steps
-              <span
-                className={`ml-1 px-2 py-1 rounded-full text-xs font-bold ${
-                  theme === "dark" ? "bg-purple-800/50" : "bg-purple-600/20"
-                }`}
-              >
-                {enabledCount}
-              </span>
-            </ActionButton>
+          
+          <div className="text-center mt-8">
+            <Badge variant="outline" className="px-4 py-2 text-sm">
+              More categories coming soon!
+            </Badge>
           </div>
+        </div>
+      </section>
 
-          <DecorativeElements theme={theme} />
-        </StepContainer>
-      );
-    },
-  });
-
-  return (
-    <div
-      style={{ backgroundColor: "white" }}
-      className="h-screen w-screen flex justify-center items-center flex-col transition-colors duration-300"
-    >
-      <div className="bg-gray-100 backdrop-blur-md p-8 rounded-2xl shadow-xl max-w-4xl w-full">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2 text-center">Human-in-the-Loop Agent</h1>
-        <p className="text-gray-600 text-center italic mb-6">Plan tasks and get your input on the steps! 🚀</p>
-        
-        <div className="text-center">
-          <div className="bg-white backdrop-blur-sm p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">How to Use</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <div className="text-2xl mb-2">💬</div>
-                <h3 className="font-semibold text-gray-800 mb-2">1. Ask for a Plan</h3>
-                <p>Use the sidebar to ask me to plan tasks like "Plan a trip to Mars in 5 steps"</p>
+      {/* Testimonials Section */}
+      <section className="py-20 px-6 lg:px-8 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              What Our Users Say
+            </h2>
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
+                ))}
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <div className="text-2xl mb-2">✅</div>
-                <h3 className="font-semibold text-gray-800 mb-2">2. Select Steps</h3>
-                <p>I'll show you step-by-step plans where you can select which steps to execute</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <div className="text-2xl mb-2">🎯</div>
-                <h3 className="font-semibold text-gray-800 mb-2">3. Execute</h3>
-                <p>Confirm your selection and I'll provide a creative description of the execution</p>
-              </div>
+              <span className="text-muted-foreground font-medium">4.9/5 from 1,000+ users</span>
             </div>
           </div>
-            </div>
-            
-        <div className="mt-8 text-center">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="font-semibold text-blue-800 mb-3">Available Agents:</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-blue-700">
-              <a 
-                href="/insurance" 
-                className="bg-white p-3 rounded border border-blue-100 hover:bg-blue-50 transition-colors"
-              >
-                🛡️ Insurance Advisor
-              </a>
-              <div className="bg-white p-3 rounded border border-blue-100">
-                <span className="block">🚀 Task Planner (Current)</span>
+          
+          <div className="grid md:grid-cols-2 gap-8">
+            <Card className="p-8 shadow-sm border-0 bg-white/90 backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                  P
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">Priya M.</div>
+                  <div className="text-sm text-muted-foreground">Bangalore</div>
+                </div>
               </div>
-            </div>
+              <p className="text-muted-foreground leading-relaxed mb-4">
+                "Found my health insurance plan in 2 minutes! The chatbot explained the coverage better than any agent."
+              </p>
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-8 shadow-sm border-0 bg-white/90 backdrop-blur-sm hover:shadow-md transition-shadow duration-300">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
+                  R
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">Rohit S.</div>
+                  <div className="text-sm text-muted-foreground">Delhi</div>
+                </div>
+              </div>
+              <p className="text-muted-foreground leading-relaxed mb-4">
+                "I just typed 'best auto insurance under ₹10K' and got a perfect match instantly."
+              </p>
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
+                ))}
+              </div>
+            </Card>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      </section>
 
-// Simple sun icon for the weather card
-function SunIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-yellow-200">
-      <circle cx="12" cy="12" r="5" />
-      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2" stroke="currentColor" />
-    </svg>
-  );
-}
-
-// Weather card component where the location and themeColor are based on what the agent
-// sets via tool calls.
-function WeatherCard({ location, themeColor }: { location?: string, themeColor: string }) {
-  return (
-    <div
-    style={{ backgroundColor: themeColor }}
-    className="rounded-xl shadow-xl mt-6 mb-4 max-w-md w-full"
-  >
-    <div className="bg-white/20 p-4 w-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-bold text-white capitalize">{location}</h3>
-          <p className="text-white">Current Weather</p>
+      {/* FAQ Section */}
+      <section className="py-20 px-6 lg:px-8 bg-gradient-to-tr from-violet-50 via-purple-50 to-fuchsia-50 relative overflow-hidden">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Everything you need to know about our AI Insurance Assistant
+            </p>
+          </div>
+          
+          <Accordion type="single" collapsible className="space-y-4">
+            {[
+              {
+                question: "How does the chatbot find insurance plans?",
+                answer: "It scrapes and analyzes plans from verified insurance providers and government-regulated portals using AI-based ranking."
+              },
+              {
+                question: "Is this a brokerage or advisory platform?",
+                answer: "No. We're a recommendation engine — we help you compare, but you buy directly from insurers."
+              },
+              {
+                question: "Is my data safe?",
+                answer: "Absolutely. We comply with all data protection standards and never share user data externally."
+              },
+              {
+                question: "How accurate are the recommendations?",
+                answer: "Our AI achieves 99%+ accuracy by analyzing real-time data from verified insurance providers and government databases."
+              },
+              {
+                question: "Do I need to create an account?",
+                answer: "No account required! You can start chatting with our AI immediately and get recommendations instantly."
+              }
+            ].map((faq, index) => (
+              <AccordionItem key={index} value={`item-${index}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <AccordionTrigger className="px-6 py-4 text-left hover:bg-gray-50 transition-colors duration-200">
+                  <h3 className="font-semibold text-foreground pr-4">{faq.question}</h3>
+                </AccordionTrigger>
+                <AccordionContent className="px-6 pb-4">
+                  <p className="text-muted-foreground leading-relaxed border-t border-gray-100 pt-4">
+                    {faq.answer}
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
-        <SunIcon />
-      </div>
-      
-      <div className="mt-4 flex items-end justify-between">
-        <div className="text-3xl font-bold text-white">70°</div>
-        <div className="text-sm text-white">Clear skies</div>
-      </div>
-      
-      <div className="mt-4 pt-4 border-t border-white">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <p className="text-white text-xs">Humidity</p>
-            <p className="text-white font-medium">45%</p>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-20 px-6 lg:px-8 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 text-white relative overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-6 py-3 mb-8">
+            <Sparkles className="w-5 h-5 animate-pulse" />
+            <span className="font-medium">Start Your Insurance Journey</span>
           </div>
-          <div>
-            <p className="text-white text-xs">Wind</p>
-            <p className="text-white font-medium">5 mph</p>
-          </div>
-          <div>
-            <p className="text-white text-xs">Feels Like</p>
-            <p className="text-white font-medium">72°</p>
+          
+          <h2 className="text-3xl sm:text-5xl font-bold mb-6 leading-tight">
+            Ready to Find Your Perfect Plan?
+          </h2>
+          <p className="text-xl text-blue-100 mb-10 max-w-3xl mx-auto leading-relaxed">
+            Chat with our AI and discover your best insurance options — personalized, transparent, and instant.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/signup">
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 h-14 px-10 shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 group text-lg font-semibold">
+                <MessageCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-300" />
+                Get Started Now
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+              </Button>
+            </Link>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-  );
-}
+      </section>
 
-// Clock icon for the time card
-function ClockIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-blue-200">
-      <circle cx="12" cy="12" r="10" strokeWidth="2" stroke="currentColor" fill="none" />
-      <path d="M12 6v6l4 2" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-// Time card component where the timezone and themeColor are based on what the agent
-// sets via tool calls.
-function TimeCard({ timezone, themeColor }: { timezone?: string, themeColor: string }) {
-  const [currentTime, setCurrentTime] = useState("");
-  const [mounted, setMounted] = useState(false);
-  
-  // Update time every second
-  useEffect(() => {
-    // Set mounted to true and initialize time on client side only
-    setMounted(true);
-    setCurrentTime(new Date().toLocaleTimeString());
-    
-    const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString());
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, []);
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-md w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-white capitalize">{timezone || 'Local Time'}</h3>
-            <p className="text-white">Current Time</p>
-          </div>
-          <ClockIcon />
-        </div>
-        
-        <div className="mt-4 flex items-end justify-between">
-          <div className="text-3xl font-bold text-white font-mono">
-            {mounted ? currentTime : "--:--:--"}
-          </div>
-          <div className="text-sm text-white">Live</div>
-        </div>
-        
-        <div className="mt-4 pt-4 border-t border-white">
-          <div className="grid grid-cols-2 gap-2 text-center">
+      {/* Footer */}
+      <footer className="py-12 px-6 lg:px-8 bg-muted/20 border-t border-border/20">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <p className="text-white text-xs">Date</p>
-              <p className="text-white font-medium">
-                {mounted ? new Date().toLocaleDateString() : "--/--/----"}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-lg font-semibold">Pro Invest</span>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Revolutionizing insurance shopping with AI-powered recommendations.
               </p>
             </div>
+            
             <div>
-              <p className="text-white text-xs">Timezone</p>
-              <p className="text-white font-medium">{timezone || 'Local'}</p>
+              <h3 className="font-semibold text-foreground mb-3">Product</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="/insurance" className="hover:text-foreground transition-colors">AI Assistant</Link></li>
+                <li><Link href="/insurance" className="hover:text-foreground transition-colors">Health Insurance</Link></li>
+                <li><Link href="/insurance" className="hover:text-foreground transition-colors">Auto Insurance</Link></li>
+                <li><Link href="/insurance" className="hover:text-foreground transition-colors">Life Insurance</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-foreground mb-3">Company</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="#" className="hover:text-foreground transition-colors">About</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">Privacy Policy</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">Terms of Use</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">Contact Us</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-foreground mb-3">Support</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="#" className="hover:text-foreground transition-colors">Help Center</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">FAQ</Link></li>
+                <li><Link href="#" className="hover:text-foreground transition-colors">Live Chat</Link></li>
+              </ul>
             </div>
           </div>
+          
+          <div className="border-t border-border/20 pt-8 text-center">
+            <p className="text-muted-foreground text-sm">
+              © 2024 Pro Invest. All rights reserved. Powered by AI • Built with CopilotKit & LangGraph
+            </p>
+          </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }
-
-// Human icon for the HITL card
-function HumanIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-orange-200">
-      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-    </svg>
-  );
-}
-
-// HITL card component for human input requests
-function HITLCard({ 
-  question, 
-  context, 
-  themeColor, 
-  onResponse,
-  onStart
-}: { 
-  question: string, 
-  context?: string, 
-  themeColor: string, 
-  onResponse: (response: string) => void,
-  onStart?: () => void
-}) {
-  const [response, setResponse] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
-
-  // Call onStart when component mounts
-  useEffect(() => {
-    if (onStart) {
-      onStart();
-    }
-  }, [onStart]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (response.trim() && !isSubmitted) {
-      setIsSubmitted(true);
-      onResponse(response.trim());
-      setResponse("");
-    }
-  };
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-md w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-xl font-bold text-white">Human Input Required</h3>
-            <p className="text-white text-sm">The agent needs your input</p>
-          </div>
-          <HumanIcon />
-        </div>
-        
-        <div className="mb-4">
-          <p className="text-white font-medium mb-2">Question:</p>
-          <p className="text-white/90 text-sm bg-white/10 p-3 rounded-lg">{question}</p>
-          {context && (
-            <div className="mt-2">
-              <p className="text-white/70 text-xs mb-1">Context:</p>
-              <p className="text-white/80 text-xs bg-white/5 p-2 rounded">{context}</p>
-            </div>
-          )}
-        </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <label className="text-white text-sm font-medium block mb-1">
-              Your Response:
-            </label>
-            <textarea
-              value={response}
-              onChange={(e) => setResponse(e.target.value)}
-              placeholder={isSubmitted ? "Response submitted, waiting for agent..." : "Type your response here..."}
-              className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 resize-none"
-              rows={3}
-              required
-              disabled={isSubmitted}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitted || !response.trim()}
-            className={`w-full font-medium py-2 px-4 rounded-lg transition-colors duration-200 border ${
-              isSubmitted 
-                ? "bg-green-500/20 text-green-200 border-green-400/30 cursor-not-allowed" 
-                : "bg-white/20 hover:bg-white/30 text-white border-white/30"
-            }`}
-          >
-            {isSubmitted ? "Response Submitted ✓" : "Submit Response"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-

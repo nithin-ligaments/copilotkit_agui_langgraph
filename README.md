@@ -69,8 +69,7 @@ npm run dev
 
 ## 📱 Available Pages
 
-- **`/`** - Main application with general LangGraph agent
-- **`/hitl`** - Human-in-the-Loop agent with interactive step selection
+- **`/`** - Insurance advisor landing page with "Try Assistant" button
 - **`/insurance`** - Insurance processing agent with form interface
 
 ## 🛠️ Available Scripts
@@ -91,15 +90,12 @@ npm run dev
 
 ```
 ├── agent/                          # Python LangGraph agents
-│   ├── agent.py                   # General purpose agent
-│   ├── human_in_the_loop_agent.py # HITL agent implementation
 │   ├── insurance_agent.py         # Insurance processing agent
 │   ├── requirements.txt           # Python dependencies
 │   └── langgraph.json            # LangGraph configuration
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Main application page
-│   │   ├── hitl/                 # HITL agent page
 │   │   ├── insurance/            # Insurance agent page
 │   │   └── api/copilotkit/       # API routes for CopilotKit
 │   └── components/
@@ -113,21 +109,11 @@ npm run dev
 
 ## 🎯 Agent Types
 
-### 1. General Purpose Agent (`/`)
-- Basic LangGraph agent for general conversations
-- Integrated with CopilotKit UI
-- Handles various types of queries and tasks
-
-### 2. Human-in-the-Loop Agent (`/hitl`)
-- Interactive step selection interface
-- Users can enable/disable specific steps
-- Pauses execution for user input
-- Perfect for complex task planning
-
-### 3. Insurance Agent (`/insurance`)
+### Insurance Agent (`/` and `/insurance`)
 - Specialized for insurance processing
 - Form-based interface for data collection
 - Structured data handling and validation
+- Provides personalized insurance recommendations
 
 ## 🚀 Development Workflow
 

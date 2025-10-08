@@ -95,7 +95,7 @@ function InsuranceMainContent() {
         defaultOpen={true}
         labels={{
           title: "Insurance Advisor",
-          initial: "👋 Hi! I'm your AI insurance advisor. I can help you find the best insurance coverage by analyzing your needs and comparing providers.\n\nTry asking me:\n- **\"I need health insurance for my family of 4\"**\n- **\"Find me the best auto insurance in California\"**\n- **\"I want life insurance with a $500/month budget\"**\n\nI'll collect your requirements and provide personalized recommendations!"
+          initial: "👋 Hi! I'm your AI insurance advisor. I can help you find the best insurance coverage by analyzing your needs and comparing providers.\n\nTry asking me:\n- \"I need health insurance for my family of 4\"\n- \"Find me the best auto insurance in California\"\n- \"I want life insurance with a $500/month budget\"\n\nI'll collect your requirements and provide personalized recommendations!"
         }}
         className="copilot-sidebar-custom"
       />
